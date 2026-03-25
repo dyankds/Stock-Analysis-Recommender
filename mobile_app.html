@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="HalalStock">
+<title>🌙 HalalStock</title>
+
+<!-- PWA manifest inline -->
+<script>
+const manifestData = {
+  name: "HalalStock Analyser",
+  short_name: "HalalStock",
+  description: "Daily halal stock recommendations for 5-10 year investors",
+  start_url: "/",
+  display: "standalone",
+  background_color: "#0d1117",
+  theme_color: "#0d1117",
+  icons: [{ src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌙</text></svg>", sizes: "any", type: "image/svg+xml" }]
+};
+const blob = new Blob([JSON.stringify(manifestData)], {type:'application/json'});
+const link = document.createElement('link');
+link.rel = 'manifest';
+link.href = URL.createObjectURL(blob);
+document.head.appendChild(link);
+</script>
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d;
+    --text: #f0f6fc; --muted: #8b949e; --green: #3fb950;
+    --yellow: #d29922; --red: #f85149; --blue: #58a6ff;
+    --accent: #1f6feb;
+  }
+
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+    min-height: 100vh; padding-bottom: 80px;
+  }
+
+  /* ── Top nav ── */
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .topbar h1 { font-size: 1.1rem; font-weight: 700; }
+  .topbar .date { font-size: 0.75rem; color: var(--muted); }
+
+  /* ── Bottom tab bar ── */
+  .tabbar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex; padding-bottom: env(safe-area-inset-bottom);
+    z-index: 100;
+  }
+  .tabbar button {
+    flex: 1; background: none; border: none; color: var(--muted);
+    padding: 10px 4px 6px; font-size: 0.65rem; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  .tabbar button.active { color: var(--blue); }
+  .tabbar button .icon { font-size: 1.3rem; }
+
+  /* ── Pages ── */
+  .page { display: none; padding: 16px; }
+  .page.active { display: block; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+  .card.buy    { border-left: 3px solid var(--green); }
+  .card.hold   { border-left: 3px solid var(--yellow); }
+  .card.avoid  { border-left: 3px solid var(--red); }
+
+  .card-header { display: flex; justify-content: space-between; align-items: flex-start; }
+  .card-name   { font-weight: 700; font-size: 0.95rem; }
+  .card-ticker { color: var(--muted); font-size: 0.75rem; }
+  .score-badge {
+    font-size: 1.4rem; font-weight: 800; line-height: 1;
+  }
+  .score-badge.buy   { color: var(--green); }
+  .score-badge.hold  { color: var(--yellow); }
+  .score-badge.avoid { color: var(--red); }
+
+  .verdict { font-size: 0.8rem; font-weight: 600; margin: 4px 0; }
+  .verdict.buy   { color: var(--green); }
+  .verdict.hold  { color: var(--yellow); }
+  .verdict.avoid { color: var(--red); }
+
+  .card-meta { color: var(--muted); font-size: 0.72rem; margin-top: 4px; }
+  .price-row { display: flex; gap: 12px; margin-top: 6px; font-size: 0.75rem; }
+  .price-row span { background: #21262d; border-radius: 4px; padding: 2px 6px; }
+
+  /* ── Badges ── */
+  .badge { display: inline-block; border-radius: 4px; padding: 1px 6px; font-size: 0.68rem; font-weight: 600; margin-left: 4px; }
+  .badge.halal  { background: #1f4d2e; color: var(--green); }
+  .badge.sukuk  { background: #1a3a5c; color: var(--blue); }
+
+  /* ── Summary pills ── */
+  .pill-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .pill { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 6px 12px; font-size: 0.78rem; }
+  .pill.green { border-color: var(--green); color: var(--green); }
+  .pill.yellow { border-color: var(--yellow); color: var(--yellow); }
+  .pill.blue { border-color: var(--blue); color: var(--blue); }
+
+  /* ── Section title ── */
+  .section-title { font-weight: 700; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 8px; }
+
+  /* ── Broker card ── */
+  .broker-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 8px; }
+  .broker-name { font-weight: 700; font-size: 0.9rem; }
+  .broker-stars { color: var(--yellow); font-size: 0.8rem; }
+  .broker-meta { color: var(--muted); font-size: 0.75rem; margin-top: 4px; }
+  .broker-link { color: var(--blue); font-size: 0.75rem; text-decoration: none; }
+
+  /* ── Alert form ── */
+  .form-group { margin-bottom: 14px; }
+  label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+  input[type=text], input[type=password] {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); padding: 10px 12px; font-size: 0.9rem;
+    outline: none;
+  }
+  input:focus { border-color: var(--blue); }
+  .btn {
+    width: 100%; background: var(--accent); color: white; border: none;
+    border-radius: 8px; padding: 12px; font-size: 0.9rem; font-weight: 600;
+    cursor: pointer; margin-top: 8px;
+  }
+  .btn:active { opacity: 0.8; }
+  .btn.secondary { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
+
+  /* ── About ── */
+  .info-block { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 10px; }
+  .info-block h3 { font-size: 0.9rem; margin-bottom: 8px; }
+  .info-block p, .info-block li { font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+  .info-block ul { padding-left: 16px; }
+
+  .loader { text-align: center; padding: 40px; color: var(--muted); }
+  .loader .spin { font-size: 2rem; animation: spin 1s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <h1>🌙 HalalStock</h1>
+  <span class="date" id="dateDisplay"></span>
+</div>
+
+<!-- Pages -->
+<div id="page-home" class="page active">
+  <div id="homeContent">
+    <div class="loader"><div class="spin">🌙</div><br>Loading market data…</div>
+  </div>
+</div>
+
+<div id="page-sukuk" class="page">
+  <div class="section-title">Islamic ETFs & Sukuk</div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-name">SP500 Sharia ETF <span class="badge halal">🌙 Halal</span></div>
+        <div class="card-ticker">SPUS · NYSE Arca · TER 0.49%</div>
+      </div>
+      <div class="score-badge buy">72</div>
+    </div>
+    <div class="verdict buy">🟢 BUY for long-term core</div>
+    <div class="card-meta">Largest US-listed Islamic equity ETF. Monthly Sharia audit. Tracks S&P 500 Sharia index.</div>
+    <div class="price-row"><span>AUM ~$1.1B</span><span>📈 5yr CAGR est. 8–10%</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-name">iShares Global Sukuk ETF <span class="badge sukuk">🏦 Sukuk</span></div>
+        <div class="card-ticker">SUKUK.L · London Stock Exchange · TER 0.45%</div>
+      </div>
+      <div class="score-badge buy">68</div>
+    </div>
+    <div class="verdict buy">🟢 BUY – bond replacement</div>
+    <div class="card-meta">Sovereign & corporate sukuk from UAE, Saudi Arabia, Malaysia, Indonesia. USD-denominated.</div>
+    <div class="price-row"><span>AUM ~$850M</span><span>Yield ~3.5–4.5%</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-name">Wahed FTSE Shariah ETF <span class="badge halal">🌙 Halal</span></div>
+        <div class="card-ticker">HLAL · NASDAQ · TER 0.50%</div>
+      </div>
+      <div class="score-badge hold">65</div>
+    </div>
+    <div class="verdict hold">🟡 HOLD/WATCH</div>
+    <div class="card-meta">US equities filtered by FTSE Shariah methodology. No conventional financials, alcohol, tobacco.</div>
+    <div class="price-row"><span>AUM ~$650M</span><span>📈 Globally diversified</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-name">iShares MSCI World Islamic <span class="badge halal">🌙 Halal</span></div>
+        <div class="card-ticker">ISDU · NASDAQ · TER 0.60%</div>
+      </div>
+      <div class="score-badge buy">70</div>
+    </div>
+    <div class="verdict buy">🟢 BUY – global diversification</div>
+    <div class="card-meta">Developed market equities screened by MSCI Islamic methodology. 400+ holdings.</div>
+    <div class="price-row"><span>AUM ~$400M</span><span>🌍 US + EU + JP</span></div>
+  </div>
+
+  <div class="info-block">
+    <h3>📚 What is Sukuk?</h3>
+    <p>Sukuk are Islamic bond-equivalents. Instead of interest (riba), you receive profit-sharing from ownership of a real underlying asset. Suitable as the fixed-income portion of a halal portfolio.</p>
+  </div>
+</div>
+
+<div id="page-brokers" class="page">
+  <div class="section-title">Best Brokers from Estonia 🇪🇪</div>
+
+  <div class="broker-card">
+    <div style="display:flex;justify-content:space-between">
+      <div class="broker-name">Interactive Brokers</div>
+      <div class="broker-stars">⭐⭐⭐⭐⭐</div>
+    </div>
+    <div class="broker-meta">$0 US · €3 min EU · Halal ETFs ✅ · Sukuk ✅</div>
+    <div class="broker-meta" style="margin-top:4px">Best for EU residents. EU-regulated. Access US, EU, MY markets.</div>
+    <a class="broker-link" href="https://www.interactivebrokers.eu">interactivebrokers.eu ↗</a>
+  </div>
+
+  <div class="broker-card">
+    <div style="display:flex;justify-content:space-between">
+      <div class="broker-name">Lightyear 🇪🇪</div>
+      <div class="broker-stars">⭐⭐⭐⭐</div>
+    </div>
+    <div class="broker-meta">€1/trade · No custody fee · Halal ETFs ✅ · Sukuk ❌</div>
+    <div class="broker-meta" style="margin-top:4px">Built in Tallinn. Best UI for Baltic investors. SPUS & HLAL available.</div>
+    <a class="broker-link" href="https://lightyear.com">lightyear.com ↗</a>
+  </div>
+
+  <div class="broker-card">
+    <div style="display:flex;justify-content:space-between">
+      <div class="broker-name">Trading 212</div>
+      <div class="broker-stars">⭐⭐⭐⭐</div>
+    </div>
+    <div class="broker-meta">0% commission · Fractional shares · Halal ETFs ✅</div>
+    <div class="broker-meta" style="margin-top:4px">Commission-free. Fractional shares. SPUS & HLAL available.</div>
+    <a class="broker-link" href="https://trading212.com">trading212.com ↗</a>
+  </div>
+
+  <div class="broker-card">
+    <div style="display:flex;justify-content:space-between">
+      <div class="broker-name">Degiro</div>
+      <div class="broker-stars">⭐⭐⭐⭐</div>
+    </div>
+    <div class="broker-meta">€1–3/trade · LSE access · Halal ETFs ✅ · Sukuk ✅</div>
+    <div class="broker-meta" style="margin-top:4px">Large EU broker. Access to LSE for SUKUK.L. Good for EU-listed Islamic ETFs.</div>
+    <a class="broker-link" href="https://degiro.eu">degiro.eu ↗</a>
+  </div>
+
+  <div class="info-block" style="margin-top:16px">
+    <h3>💡 Estonia Tax Tip</h3>
+    <p>Use an <strong>Investeerimiskonto</strong> (Investment Account) — gains are tax-deferred until withdrawal. Perfect for 5–10 year halal investing. All major EU brokers support it.</p>
+  </div>
+</div>
+
+<div id="page-alerts" class="page">
+  <div class="section-title">🔔 Alert Settings</div>
+
+  <div class="info-block">
+    <h3>📱 Telegram Alerts (Recommended)</h3>
+    <p>Get BUY/SELL signals every weekday at 18:00 EET directly to your phone.</p>
+  </div>
+
+  <div class="form-group">
+    <label>Telegram Bot Token</label>
+    <input type="password" id="tgToken" placeholder="Paste token from @BotFather">
+  </div>
+  <div class="form-group">
+    <label>Telegram Chat ID</label>
+    <input type="text" id="tgChat" placeholder="e.g. -100123456789">
+  </div>
+  <button class="btn" onclick="testTelegram()">📤 Send Test Alert</button>
+  <div id="tgStatus" style="margin-top:8px;font-size:0.8rem;color:var(--muted)"></div>
+
+  <div class="section-title" style="margin-top:24px">⏰ Free Daily Scheduling</div>
+  <div class="info-block">
+    <h3>GitHub Actions (100% free)</h3>
+    <ul>
+      <li>Fork the repo on GitHub</li>
+      <li>Add TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID as Secrets</li>
+      <li>Enable Actions → runs every weekday at 18:00 EET</li>
+      <li>Zero cost, zero server needed</li>
+    </ul>
+  </div>
+
+  <div class="section-title">🔔 Browser Push Notifications</div>
+  <button class="btn secondary" onclick="requestPushPermission()" id="pushBtn">Enable Browser Notifications</button>
+  <div id="pushStatus" style="margin-top:8px;font-size:0.8rem;color:var(--muted)"></div>
+</div>
+
+<!-- Bottom tab bar -->
+<div class="tabbar">
+  <button class="active" onclick="showPage('home', this)">
+    <span class="icon">📊</span>Dashboard
+  </button>
+  <button onclick="showPage('sukuk', this)">
+    <span class="icon">🏦</span>Sukuk
+  </button>
+  <button onclick="showPage('brokers', this)">
+    <span class="icon">🛒</span>Brokers
+  </button>
+  <button onclick="showPage('alerts', this)">
+    <span class="icon">🔔</span>Alerts
+  </button>
+</div>
+
+<script>
+// ── Date display ──────────────────────────────────────────────────────────
+document.getElementById('dateDisplay').textContent =
+  new Date().toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'});
+
+// ── Tab navigation ────────────────────────────────────────────────────────
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tabbar button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'home' && !window._homeLoaded) loadHomeData();
+}
+
+// ── Mock stock data (replace with real API calls in production) ───────────
+const STOCKS = [
+  { ticker:'SPUS',  name:'SP500 Sharia ETF',  type:'etf',    score:78, verdict:'BUY',   entry:56.20, stop:50.58, target:81.49, sector:'Islamic ETF',  market:'US', change:+0.82 },
+  { ticker:'NVDA',  name:'NVIDIA Corp',        type:'equity', score:75, verdict:'BUY',   entry:118.50,stop:106.65,target:171.83,sector:'Technology',    market:'US', change:+1.24 },
+  { ticker:'MSFT',  name:'Microsoft Corp',     type:'equity', score:74, verdict:'BUY',   entry:415.20,stop:373.68,target:601.54,sector:'Technology',    market:'US', change:+0.43 },
+  { ticker:'ISDU',  name:'iShares MSCI Isl',   type:'etf',    score:72, verdict:'BUY',   entry:32.40, stop:29.16, target:46.98, sector:'Islamic ETF',  market:'US', change:+0.31 },
+  { ticker:'NVO',   name:'Novo Nordisk',        type:'equity', score:70, verdict:'BUY',   entry:84.60, stop:76.14, target:122.67,sector:'Healthcare',   market:'EU', change:-0.55 },
+  { ticker:'AAPL',  name:'Apple Inc',           type:'equity', score:68, verdict:'WATCH', entry:213.40,stop:192.06,target:309.43,sector:'Technology',   market:'US', change:+0.18 },
+  { ticker:'ASML',  name:'ASML Holding',        type:'equity', score:65, verdict:'WATCH', entry:680.00,stop:612.00,target:986.00,sector:'Semiconductors',market:'EU', change:-1.10 },
+  { ticker:'HLAL',  name:'Wahed FTSE Shariah',  type:'etf',    score:64, verdict:'WATCH', entry:42.30, stop:38.07, target:61.34, sector:'Islamic ETF',  market:'US', change:+0.22 },
+  { ticker:'FSLR',  name:'First Solar',         type:'equity', score:62, verdict:'WATCH', entry:155.00,stop:139.50,target:224.75,sector:'Clean Energy', market:'US', change:-0.88 },
+];
+
+function buildHomeHTML() {
+  const buys  = STOCKS.filter(s => s.verdict === 'BUY').length;
+  const watch = STOCKS.filter(s => s.verdict === 'WATCH').length;
+
+  let html = `
+    <div class="pill-row">
+      <div class="pill green">🟢 ${buys} BUY</div>
+      <div class="pill yellow">🟡 ${watch} WATCH</div>
+      <div class="pill blue">📊 ${STOCKS.length} Scanned</div>
+    </div>
+    <div class="section-title">🏆 Top Halal Picks – 5–10yr Horizon</div>
+  `;
+
+  STOCKS.forEach(s => {
+    const cls   = s.verdict === 'BUY' ? 'buy' : (s.verdict === 'WATCH' ? 'hold' : 'avoid');
+    const icon  = s.verdict === 'BUY' ? '🟢' : (s.verdict === 'WATCH' ? '🟡' : '🔴');
+    const badge = s.type === 'etf' ? '<span class="badge sukuk">🏦 Islamic ETF</span>' : '<span class="badge halal">🌙 Halal</span>';
+    const chgColor = s.change >= 0 ? 'var(--green)' : 'var(--red)';
+    const chgStr  = (s.change >= 0 ? '+' : '') + s.change.toFixed(2) + '%';
+
+    html += `
+      <div class="card ${cls}">
+        <div class="card-header">
+          <div>
+            <div class="card-name">${s.name} ${badge}</div>
+            <div class="card-ticker">${s.ticker} · ${s.sector} · ${s.market}</div>
+          </div>
+          <div style="text-align:right">
+            <div class="score-badge ${cls}">${s.score}</div>
+            <div style="font-size:0.7rem;color:${chgColor}">${chgStr} today</div>
+          </div>
+        </div>
+        <div class="verdict ${cls}">${icon} ${s.verdict}</div>
+        <div class="price-row">
+          <span>Entry $${s.entry}</span>
+          <span>Stop $${s.stop}</span>
+          <span>5yr Target $${s.target}</span>
+        </div>
+      </div>
+    `;
+  });
+
+  html += `
+    <div class="info-block" style="margin-top:16px">
+      <h3>⚙️ Live data setup</h3>
+      <p>This preview uses cached data. Run <code>streamlit run app.py</code> for live prices via yfinance, or deploy to Streamlit Cloud.</p>
+    </div>
+  `;
+  return html;
+}
+
+function loadHomeData() {
+  const content = document.getElementById('homeContent');
+  // Simulate a short load
+  setTimeout(() => {
+    content.innerHTML = buildHomeHTML();
+    window._homeLoaded = true;
+  }, 800);
+}
+loadHomeData();
+
+// ── Telegram test ─────────────────────────────────────────────────────────
+async function testTelegram() {
+  const token  = document.getElementById('tgToken').value.trim();
+  const chatId = document.getElementById('tgChat').value.trim();
+  const status = document.getElementById('tgStatus');
+  if (!token || !chatId) { status.textContent = '⚠️ Enter both Token and Chat ID'; return; }
+  status.textContent = '⏳ Sending…';
+  const msg = '🌙 *HalalStock Test*\n\n✅ Alerts are working! You will receive daily BUY/SELL signals here.';
+  try {
+    const resp = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({chat_id: chatId, text: msg, parse_mode: 'Markdown'}),
+    });
+    const data = await resp.json();
+    status.textContent = data.ok ? '✅ Alert sent! Check Telegram.' : '❌ Failed: ' + data.description;
+  } catch(e) {
+    status.textContent = '❌ Network error: ' + e.message;
+  }
+}
+
+// ── Browser push notifications ────────────────────────────────────────────
+async function requestPushPermission() {
+  const status = document.getElementById('pushStatus');
+  const btn    = document.getElementById('pushBtn');
+  if (!('Notification' in window)) {
+    status.textContent = '❌ Notifications not supported in this browser.';
+    return;
+  }
+  const perm = await Notification.requestPermission();
+  if (perm === 'granted') {
+    btn.textContent = '✅ Notifications Enabled';
+    status.textContent = 'You will receive alerts when the page is open.';
+    // Schedule a demo notification
+    setTimeout(() => {
+      new Notification('🌙 HalalStock Alert', {
+        body: '🟢 BUY Signal: SPUS (SP500 Sharia ETF)\nScore: 78/100 · Entry $56.20',
+        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"><text y="90%" font-size="90">🌙</text></svg>',
+      });
+    }, 2000);
+  } else {
+    status.textContent = '⚠️ Permission denied. Please enable in browser settings.';
+  }
+}
+
+// ── PWA install prompt ────────────────────────────────────────────────────
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Could show an "Add to Home Screen" button here
+});
+</script>
+</body>
+</html>
