@@ -454,25 +454,34 @@ if "📊 Daily Dashboard" in page:
     st.subheader("📋 Full Screened Universe")
 
     df = pd.DataFrame([{
-        "Ticker":  r["ticker"],
-        "Name":    r["name"],
-        "Market":  r["market"],
-        "Sector":  r["sector"],
-        "Type":    r["type"],
-        "Score":   r["score"],
-        "Verdict": r["verdict"],
-        "Entry $": f"{r['entry']:.2f}",
+        "Ticker":     r["ticker"],
+        "Name":       r["name"],
+        "Market":     r["market"],
+        "Sector":     r["sector"],
+        "Type":       r["type"],
+        "Score":      r["score"],
+        "Verdict":    r["verdict"],
+        "Entry $":    f"{r['entry']:.2f}",
         "5yr Target": f"{r['target']:.2f}",
-        "Day %":   f"{r['price_chg']:+.2f}%",
+        "Day %":      f"{r['price_chg']:+.2f}%",
     } for r in results])
 
-    def colour_verdict(val):
-        if val == "BUY":        return "color: #3fb950; font-weight:600"
-        if val == "HOLD/WATCH": return "color: #d29922; font-weight:600"
-        return "color: #f85149; font-weight:600"
+    def colour_row(row):
+        v = row.get("Verdict", "")
+        if v == "BUY":
+            color = "#3fb950"
+        elif v == "HOLD/WATCH":
+            color = "#d29922"
+        else:
+            color = "#f85149"
+        return [f"color: {color}; font-weight: 600" if col == "Verdict" else "" for col in row.index]
 
-    styled = df.style.applymap(colour_verdict, subset=["Verdict"])
-    st.dataframe(styled, use_container_width=True, hide_index=True)
+    try:
+        styled = df.style.apply(colour_row, axis=1)
+        st.dataframe(styled, use_container_width=True, hide_index=True)
+    except Exception:
+        # Fallback: plain dataframe if styling fails
+        st.dataframe(df, use_container_width=True, hide_index=True)
 
 
 # ════════════════════════════════════════════════════════════════════════════
