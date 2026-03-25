@@ -454,16 +454,16 @@ if "📊 Daily Dashboard" in page:
     st.subheader("📋 Full Screened Universe")
 
     df = pd.DataFrame([{
-        "Ticker":     r["ticker"],
-        "Name":       r["name"],
-        "Market":     r["market"],
-        "Sector":     r["sector"],
-        "Type":       r["type"],
-        "Score":      r["score"],
-        "Verdict":    r["verdict"],
-        "Entry $":    f"{r['entry']:.2f}",
-        "5yr Target": f"{r['target']:.2f}",
-        "Day %":      f"{r['price_chg']:+.2f}%",
+        "Ticker":     r.get("ticker", ""),
+        "Name":       r.get("name", ""),
+        "Market":     r.get("market", ""),
+        "Sector":     r.get("sector", ""),
+        "Type":       r.get("type", ""),
+        "Score":      r.get("score", 0),
+        "Verdict":    r.get("verdict", "N/A"),
+        "Entry $":    f"{r['entry']:.2f}" if r.get("entry") else "N/A",
+        "5yr Target": f"{r['target']:.2f}" if r.get("target") else "N/A",
+        "Day %":      f"{r['price_chg']:+.2f}%" if r.get("price_chg") is not None else "N/A",
     } for r in results])
 
     def colour_row(row):
